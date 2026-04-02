@@ -106,10 +106,11 @@ client.on('interactionCreate', async (interaction) => {
       ]
     });
 
-    await interaction.reply({
-      content: `作成完了: ${channel}`,
-      ephemeral: true
-    });
+    await interaction.deferReply({ ephemeral: true });
+
+　　await interaction.editReply({
+  　　content: `作成完了: ${channel}`
+　　});
 
     selectionMap.delete(interaction.user.id);
   }
