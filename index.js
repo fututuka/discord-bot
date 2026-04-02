@@ -106,7 +106,7 @@ client.on('interactionCreate', async (interaction) => {
       ]
     });
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply();
 
 　　await interaction.editReply({
   　　content: `作成完了: ${channel}`
