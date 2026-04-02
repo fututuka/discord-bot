@@ -6,15 +6,20 @@ const {
   ButtonBuilder,
   ButtonStyle,
   PermissionsBitField,
-  ChannelType
+  ChannelType,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle
 } = require('discord.js');
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
 
-// ユーザーごとの選択状態を保存
 const selectionMap = new Map();
+
+// ★ここにカテゴリID
+const CATEGORY_ID = '1489259069767291002';
 
 client.once('clientReady', () => {
   console.log(`ログイン: ${client.user.tag}`);
@@ -22,19 +27,19 @@ client.once('clientReady', () => {
 
 client.on('interactionCreate', async (interaction) => {
 
-  // /create コマンド
+  // /create
   if (interaction.isChatInputCommand()) {
     if (interaction.commandName === 'create') {
 
       const select = new UserSelectMenuBuilder()
         .setCustomId('user_select')
-        .setPlaceholder('ユーザーを選択')
+        .setPlaceholder('メンバーを選択')
         .setMinValues(1)
-        .setMaxValues(5); // ←人数上限（自由に変えてOK）
+        .setMaxValues(5);
 
       const button = new ButtonBuilder()
-        .setCustomId('create_channel')
-        .setLabel('チャンネル作成')
+        .setCustomId('open_modal')
+        .setLabel('次へ')
         .setStyle(ButtonStyle.Primary);
 
       await interaction.reply({
@@ -48,8 +53,8 @@ client.on('interactionCreate', async (interaction) => {
     }
   }
 
-  // ユーザー選択
-  if (interaction.isUserSelectMenu()) {
+  // メンバー選択
+  if (interaction.isUserSelectMenu() && interaction.customId === 'user_select') {
     selectionMap.set(interaction.user.id, interaction.values);
 
     await interaction.reply({
@@ -58,50 +63,128 @@ client.on('interactionCreate', async (interaction) => {
     });
   }
 
-  // ボタン押下
-  if (interaction.isButton()) {
-    if (interaction.customId === 'create_channel') {
+  // モーダル表示
+  if (interaction.isButton() && interaction.customId === 'open_modal') {
 
-      const selectedUsers = selectionMap.get(interaction.user.id);
+    const modal = new ModalBuilder()
+      .setCustomId('channel_modal')
+      .setTitle('チャンネル作成');
 
-      if (!selectedUsers) {
-        return interaction.reply({
-          content: '先にユーザーを選択してください',
-          ephemeral: true
-        });
-      }
+    const input = new TextInputBuilder()
+      .setCustomId('channel_name')
+      .setLabel('チャンネル名')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
 
-      const guild = interaction.guild;
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(input)
+    );
 
-      // 権限設定
-      const permissions = [
-        {
-          id: guild.id,
-          deny: [PermissionsBitField.Flags.ViewChannel],
-        },
-        {
-          id: interaction.user.id,
-          allow: [PermissionsBitField.Flags.ViewChannel],
-        },
-        ...selectedUsers.map(id => ({
-          id: id,
-          allow: [PermissionsBitField.Flags.ViewChannel],
-        }))
-      ];
+    await interaction.showModal(modal);
+  }
 
-      const channel = await guild.channels.create({
-        name: `private-${interaction.user.username}`,
-        type: ChannelType.GuildText,
-        permissionOverwrites: permissions
-      });
+  // チャンネル作成
+  if (interaction.isModalSubmit() && interaction.customId === 'channel_modal') {
 
-      await interaction.reply({
-        content: `作成完了: ${channel}`,
-        ephemeral: true
-      });
-
-      selectionMap.delete(interaction.user.id);
+    const selectedUsers = selectionMap.get(interaction.user.id);
+    if (!selectedUsers) {
+      return interaction.reply({ content: '先にメンバー選択してください', ephemeral: true });
     }
+
+    const channelName = interaction.fields.getTextInputValue('channel_name');
+    const guild = interaction.guild;
+
+    const permissions = [
+      {
+        id: guild.id,
+        deny: [PermissionsBitField.Flags.ViewChannel],
+      },
+      {
+        id: interaction.user.id,
+        allow: [PermissionsBitField.Flags.ViewChannel],
+      },
+      ...selectedUsers.map(id => ({
+        id: id,
+        allow: [PermissionsBitField.Flags.ViewChannel],
+      }))
+    ];
+
+    const channel = await guild.channels.create({
+      name: channelName,
+      type: ChannelType.GuildText,
+      parent: CATEGORY_ID,
+      permissionOverwrites: permissions
+    });
+
+    // ボタン設置
+    await channel.send({
+      content: 'メンバー管理',
+      components: [
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('add_member')
+            .setLabel('➕ メンバー追加')
+            .setStyle(ButtonStyle.Success),
+          new ButtonBuilder()
+            .setCustomId('leave_channel')
+            .setLabel('🚪 退出')
+            .setStyle(ButtonStyle.Danger)
+        )
+      ]
+    });
+
+    await interaction.reply({
+      content: `作成完了: ${channel}`,
+      ephemeral: true
+    });
+
+    selectionMap.delete(interaction.user.id);
+  }
+
+  // メンバー追加ボタン
+  if (interaction.isButton() && interaction.customId === 'add_member') {
+
+    const select = new UserSelectMenuBuilder()
+      .setCustomId('add_member_select')
+      .setPlaceholder('追加するメンバー')
+      .setMinValues(1)
+      .setMaxValues(5);
+
+    await interaction.reply({
+      content: '追加するメンバーを選択',
+      components: [new ActionRowBuilder().addComponents(select)],
+      ephemeral: true
+    });
+  }
+
+  // メンバー追加処理
+  if (interaction.isUserSelectMenu() && interaction.customId === 'add_member_select') {
+
+    const channel = interaction.channel;
+
+    for (const userId of interaction.values) {
+      await channel.permissionOverwrites.edit(userId, {
+        ViewChannel: true
+      });
+    }
+
+    await interaction.reply({
+      content: '追加しました',
+      ephemeral: true
+    });
+  }
+
+  // 退出ボタン
+  if (interaction.isButton() && interaction.customId === 'leave_channel') {
+
+    const channel = interaction.channel;
+
+    await channel.permissionOverwrites.delete(interaction.user.id);
+
+    await interaction.reply({
+      content: '退出しました',
+      ephemeral: true
+    });
   }
 
 });
