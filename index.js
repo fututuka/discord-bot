@@ -1,3 +1,4 @@
+console.log("NEW CODE LOADED");
 const {
   Client,
   GatewayIntentBits,
