@@ -1,4 +1,3 @@
-console.log("NEW CODE LOADED");
 const {
   Client,
   GatewayIntentBits,
@@ -18,54 +17,35 @@ const client = new Client({
 });
 
 const selectionMap = new Map();
-
-// ★ここにカテゴリID
 const CATEGORY_ID = '1489259069767291002';
 
 client.once('clientReady', () => {
+  console.log("NEW CODE LOADED");
   console.log(`ログイン: ${client.user.tag}`);
 });
 
 client.on('interactionCreate', async (interaction) => {
 
-  // /create
-  if (interaction.isChatInputCommand()) {
-    if (interaction.commandName === 'create') {
+  if (interaction.isChatInputCommand() && interaction.commandName === 'create') {
 
-      const select = new UserSelectMenuBuilder()
-        .setCustomId('user_select')
-        .setPlaceholder('メンバーを選択')
-        .setMinValues(1)
-        .setMaxValues(5);
-
-      const button = new ButtonBuilder()
-        .setCustomId('open_modal')
-        .setLabel('次へ')
-        .setStyle(ButtonStyle.Primary);
-
-      await interaction.reply({
-        content: 'メンバーを選択してください',
-        components: [
-          new ActionRowBuilder().addComponents(select),
-          new ActionRowBuilder().addComponents(button)
-        ],
-        ephemeral: true
-      });
-    }
-  }
-
-  // メンバー選択
-  if (interaction.isUserSelectMenu() && interaction.customId === 'user_select') {
-    selectionMap.set(interaction.user.id, interaction.values);
+    const select = new UserSelectMenuBuilder()
+      .setCustomId('user_select')
+      .setPlaceholder('メンバーを選択')
+      .setMinValues(1)
+      .setMaxValues(5);
 
     await interaction.reply({
-      content: `選択: ${interaction.values.map(id => `<@${id}>`).join(', ')}`,
+      content: 'メンバーを選択してください',
+      components: [
+        new ActionRowBuilder().addComponents(select)
+      ],
       ephemeral: true
     });
   }
 
-  // モーダル表示
-  if (interaction.isButton() && interaction.customId === 'open_modal') {
+  if (interaction.isUserSelectMenu() && interaction.customId === 'user_select') {
+
+    selectionMap.set(interaction.user.id, interaction.values);
 
     const modal = new ModalBuilder()
       .setCustomId('channel_modal')
@@ -77,21 +57,14 @@ client.on('interactionCreate', async (interaction) => {
       .setStyle(TextInputStyle.Short)
       .setRequired(true);
 
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(input)
-    );
+    modal.addComponents(new ActionRowBuilder().addComponents(input));
 
     await interaction.showModal(modal);
   }
 
-  // チャンネル作成
   if (interaction.isModalSubmit() && interaction.customId === 'channel_modal') {
 
-    const selectedUsers = selectionMap.get(interaction.user.id);
-    if (!selectedUsers) {
-      return interaction.reply({ content: '先にメンバー選択してください', ephemeral: true });
-    }
-
+    const users = selectionMap.get(interaction.user.id);
     const channelName = interaction.fields.getTextInputValue('channel_name');
     const guild = interaction.guild;
 
@@ -104,7 +77,7 @@ client.on('interactionCreate', async (interaction) => {
         id: interaction.user.id,
         allow: [PermissionsBitField.Flags.ViewChannel],
       },
-      ...selectedUsers.map(id => ({
+      ...users.map(id => ({
         id: id,
         allow: [PermissionsBitField.Flags.ViewChannel],
       }))
@@ -117,7 +90,6 @@ client.on('interactionCreate', async (interaction) => {
       permissionOverwrites: permissions
     });
 
-    // ボタン設置
     await channel.send({
       content: 'メンバー管理',
       components: [
@@ -142,50 +114,35 @@ client.on('interactionCreate', async (interaction) => {
     selectionMap.delete(interaction.user.id);
   }
 
-  // メンバー追加ボタン
   if (interaction.isButton() && interaction.customId === 'add_member') {
 
     const select = new UserSelectMenuBuilder()
       .setCustomId('add_member_select')
-      .setPlaceholder('追加するメンバー')
-      .setMinValues(1)
-      .setMaxValues(5);
+      .setPlaceholder('追加するメンバー');
 
     await interaction.reply({
-      content: '追加するメンバーを選択',
+      content: 'メンバー選択',
       components: [new ActionRowBuilder().addComponents(select)],
       ephemeral: true
     });
   }
 
-  // メンバー追加処理
   if (interaction.isUserSelectMenu() && interaction.customId === 'add_member_select') {
 
-    const channel = interaction.channel;
-
     for (const userId of interaction.values) {
-      await channel.permissionOverwrites.edit(userId, {
+      await interaction.channel.permissionOverwrites.edit(userId, {
         ViewChannel: true
       });
     }
 
-    await interaction.reply({
-      content: '追加しました',
-      ephemeral: true
-    });
+    await interaction.reply({ content: '追加しました', ephemeral: true });
   }
 
-  // 退出ボタン
   if (interaction.isButton() && interaction.customId === 'leave_channel') {
 
-    const channel = interaction.channel;
+    await interaction.channel.permissionOverwrites.delete(interaction.user.id);
 
-    await channel.permissionOverwrites.delete(interaction.user.id);
-
-    await interaction.reply({
-      content: '退出しました',
-      ephemeral: true
-    });
+    await interaction.reply({ content: '退出しました', ephemeral: true });
   }
 
 });
