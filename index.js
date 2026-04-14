@@ -112,17 +112,21 @@ client.on('interactionCreate', async (interaction) => {
           await channel.send({
             content: 'メンバー管理',
             components: [
-              new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                  .setCustomId('add_member')
-                  .setLabel('➕ メンバー追加')
-                  .setStyle(ButtonStyle.Success),
-                new ButtonBuilder()
-                  .setCustomId('leave_channel')
-                  .setLabel('🚪 退出')
-                  .setStyle(ButtonStyle.Danger)
-              )
-            ]
+  new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('add_member')
+      .setLabel('➕ メンバー追加')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId('leave_channel')
+      .setLabel('🚪 退出')
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId('rename_channel')
+      .setLabel('✏️ 名前変更')
+      .setStyle(ButtonStyle.Secondary)
+  )
+]
           });
         } catch (err) {
           console.error("送信失敗:", err);
