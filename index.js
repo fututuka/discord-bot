@@ -27,7 +27,9 @@ client.once('clientReady', () => {
 client.on('interactionCreate', async (interaction) => {
   try {
 
+    // =========================
     // /create
+    // =========================
     if (interaction.isChatInputCommand() && interaction.commandName === 'create') {
 
       const select = new UserSelectMenuBuilder()
@@ -51,13 +53,17 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    // メンバー選択（静かに）
+    // =========================
+    // メンバー選択
+    // =========================
     if (interaction.isUserSelectMenu() && interaction.customId === 'user_select') {
       selectionMap.set(interaction.user.id, interaction.values);
-      await interaction.deferUpdate();
+      await interaction.deferUpdate(); // UI操作はこれ
     }
 
+    // =========================
     // チャンネル作成
+    // =========================
     if (interaction.isButton() && interaction.customId === 'create_channel') {
 
       const users = selectionMap.get(interaction.user.id);
@@ -69,7 +75,7 @@ client.on('interactionCreate', async (interaction) => {
         });
       }
 
-      await interaction.deferReply();
+      await interaction.deferReply({ ephemeral: true }); // ★重い処理はこれ
 
       try {
         const name = interaction.member?.displayName || interaction.user.username;
@@ -115,6 +121,7 @@ client.on('interactionCreate', async (interaction) => {
 
         await channel.setTopic(`owner:${interaction.user.id}`);
 
+        // ボタン送信（遅延で安定化）
         setTimeout(async () => {
           try {
             await channel.send({
@@ -152,13 +159,14 @@ client.on('interactionCreate', async (interaction) => {
         console.error(err);
 
         await interaction.editReply({
-          content: 'エラーが発生しました',
-          components: []
+          content: 'エラーが発生しました'
         });
       }
     }
 
+    // =========================
     // メンバー追加
+    // =========================
     if (interaction.isButton() && interaction.customId === 'add_member') {
 
       const select = new UserSelectMenuBuilder()
@@ -174,31 +182,33 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.isUserSelectMenu() && interaction.customId === 'add_member_select') {
 
+      await interaction.deferUpdate();
+
       for (const userId of interaction.values) {
         await interaction.channel.permissionOverwrites.edit(userId, {
           ViewChannel: true,
           SendMessages: true
         });
       }
-
-      await interaction.reply({
-        content: 'メンバーを追加しました',
-        ephemeral: true
-      });
     }
 
+    // =========================
     // 退出
+    // =========================
     if (interaction.isButton() && interaction.customId === 'leave_channel') {
+
+      await interaction.deferReply({ ephemeral: true });
 
       await interaction.channel.permissionOverwrites.delete(interaction.user.id);
 
-      await interaction.reply({
-        content: '退出しました',
-        ephemeral: true
+      await interaction.editReply({
+        content: '退出しました'
       });
     }
 
+    // =========================
     // チャンネル変更ボタン
+    // =========================
     if (interaction.isButton() && interaction.customId === 'rename_channel') {
 
       const topic = interaction.channel.topic;
@@ -234,28 +244,30 @@ client.on('interactionCreate', async (interaction) => {
       await interaction.showModal(modal);
     }
 
-    // 名前変更処理（安定版）
-if (interaction.isModalSubmit() && interaction.customId === 'rename_modal') {
+    // =========================
+    // モーダル送信（最重要）
+    // =========================
+    if (interaction.isModalSubmit() && interaction.customId === 'rename_modal') {
 
-  await interaction.deferReply({ ephemeral: true }); // ← 先に応答（超重要）
+      await interaction.deferReply({ ephemeral: true }); // ★これが最重要
 
-  try {
-    const newName = interaction.fields.getTextInputValue('new_name');
+      try {
+        const newName = interaction.fields.getTextInputValue('new_name');
 
-    await interaction.channel.setName(newName);
+        await interaction.channel.setName(newName);
 
-    await interaction.editReply({
-      content: `変更完了: ${newName}`
-    });
+        await interaction.editReply({
+          content: `変更完了: ${newName}`
+        });
 
-  } catch (err) {
-    console.error(err);
+      } catch (err) {
+        console.error(err);
 
-    await interaction.editReply({
-      content: '変更に失敗しました'
-    });
-  }
-}
+        await interaction.editReply({
+          content: '変更に失敗しました'
+        });
+      }
+    }
 
   } catch (err) {
     console.error(err);
