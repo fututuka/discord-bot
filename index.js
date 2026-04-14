@@ -50,15 +50,12 @@ client.on('interactionCreate', async (interaction) => {
     });
   }
 
-  // メンバー選択
+  // メンバー選択（メッセージ出さない）
   if (interaction.isUserSelectMenu() && interaction.customId === 'user_select') {
 
     selectionMap.set(interaction.user.id, interaction.values);
 
-    await interaction.reply({
-      content: 'メンバーを選択しました',
-      ephemeral: true
-    });
+    await interaction.deferUpdate(); // ← これで静かに処理
   }
 
   // チャンネル作成
@@ -66,7 +63,6 @@ client.on('interactionCreate', async (interaction) => {
 
     const users = selectionMap.get(interaction.user.id);
 
-    // 未選択対策
     if (!users || users.length === 0) {
       return interaction.reply({
         content: '先にメンバーを選択してください',
@@ -118,10 +114,8 @@ client.on('interactionCreate', async (interaction) => {
         permissionOverwrites: permissions
       });
 
-      // 作成者情報保存
       await channel.setTopic(`owner:${interaction.user.id}`);
 
-      // 管理ボタン送信
       setTimeout(async () => {
         try {
           await channel.send({
@@ -149,7 +143,8 @@ client.on('interactionCreate', async (interaction) => {
       }, 1000);
 
       await interaction.editReply({
-        content: `作成完了: ${channel}`
+        content: `作成完了: ${channel}`,
+        components: [] // UIリセット
       });
 
       selectionMap.delete(interaction.user.id);
@@ -158,7 +153,8 @@ client.on('interactionCreate', async (interaction) => {
       console.error(err);
 
       await interaction.editReply({
-        content: 'エラーが発生しました'
+        content: 'エラーが発生しました',
+        components: []
       });
     }
   }
@@ -203,7 +199,7 @@ client.on('interactionCreate', async (interaction) => {
     });
   }
 
-  // 名前変更ボタン
+  // 名前変更
   if (interaction.isButton() && interaction.customId === 'rename_channel') {
 
     const topic = interaction.channel.topic;
@@ -239,7 +235,6 @@ client.on('interactionCreate', async (interaction) => {
     await interaction.showModal(modal);
   }
 
-  // 名前変更処理（完全自由）
   if (interaction.isModalSubmit() && interaction.customId === 'rename_modal') {
 
     await interaction.deferReply({ ephemeral: true });
@@ -247,7 +242,6 @@ client.on('interactionCreate', async (interaction) => {
     try {
       const newName = interaction.fields.getTextInputValue('new_name');
 
-      // ★ 完全自由（そのまま）
       await interaction.channel.setName(newName);
 
       await interaction.editReply({
