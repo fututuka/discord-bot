@@ -6,7 +6,10 @@ const {
   ButtonBuilder,
   ButtonStyle,
   PermissionsBitField,
-  ChannelType
+  ChannelType,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle
 } = require('discord.js');
 
 const client = new Client({
@@ -50,16 +53,14 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    // =========================
     // メンバー選択
-    // =========================
     else if (interaction.isUserSelectMenu() && interaction.customId === 'user_select') {
       selectionMap.set(interaction.user.id, interaction.values);
       await interaction.deferUpdate();
     }
 
     // =========================
-    // チャンネル作成（1回のみ）
+    // チャンネル作成
     // =========================
     else if (interaction.isButton() && interaction.customId === 'create_channel') {
 
@@ -74,70 +75,158 @@ client.on('interactionCreate', async (interaction) => {
 
       await interaction.deferReply({ ephemeral: true });
 
-      try {
-        const name = interaction.member?.displayName || interaction.user.username;
-        const safeName = name.replace(/\s+/g, '_');
-        const channelName = `コラボ_${safeName}`;
+      const name = interaction.member?.displayName || interaction.user.username;
+      const channelName = `コラボ_${name.replace(/\s+/g, '_')}`;
 
-        const guild = interaction.guild;
+      const guild = interaction.guild;
 
-        const permissions = [
-          {
-            id: guild.id,
-            deny: [PermissionsBitField.Flags.ViewChannel],
-          },
-          {
-            id: interaction.client.user.id,
-            allow: [
-              PermissionsBitField.Flags.ViewChannel,
-              PermissionsBitField.Flags.SendMessages
-            ],
-          },
-          {
-            id: interaction.user.id,
-            allow: [
-              PermissionsBitField.Flags.ViewChannel,
-              PermissionsBitField.Flags.SendMessages
-            ],
-          },
-          ...users.map(id => ({
-            id: id,
-            allow: [
-              PermissionsBitField.Flags.ViewChannel,
-              PermissionsBitField.Flags.SendMessages
-            ],
-          }))
-        ];
+      const permissions = [
+        { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+        { id: interaction.client.user.id, allow: [PermissionsBitField.Flags.ViewChannel] },
+        { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel] },
+        ...users.map(id => ({ id, allow: [PermissionsBitField.Flags.ViewChannel] }))
+      ];
 
-        const channel = await guild.channels.create({
-          name: channelName,
-          type: ChannelType.GuildText,
-          parent: CATEGORY_ID,
-          permissionOverwrites: permissions
-        });
+      const channel = await guild.channels.create({
+        name: channelName,
+        type: ChannelType.GuildText,
+        parent: CATEGORY_ID,
+        permissionOverwrites: permissions
+      });
 
-        await channel.setTopic(`owner:${interaction.user.id}`);
+      await channel.setTopic(`owner:${interaction.user.id}`);
 
-        // チャンネルに管理ボタン
-        await channel.send({
-          content: 'チャンネル作成完了'
-        });
+      // ボタン表示（ここ重要）
+      await channel.send({
+        content: 'メンバー管理',
+        components: [
+          new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId('add_member')
+              .setLabel('➕ メンバー追加')
+              .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+              .setCustomId('leave_channel')
+              .setLabel('🚪 退出')
+              .setStyle(ButtonStyle.Danger),
+            new ButtonBuilder()
+              .setCustomId('rename_channel')
+              .setLabel('✏️ チャンネル変更')
+              .setStyle(ButtonStyle.Secondary)
+          )
+        ]
+      });
 
-        // ★ここが重要（ボタン削除）
-        await interaction.editReply({
-          content: `作成完了: ${channel}`,
-          components: [] // ← ボタン消す
-        });
+      await interaction.editReply({
+        content: `作成完了: ${channel}`,
+        components: [] // ← createボタン消す
+      });
 
-        selectionMap.delete(interaction.user.id);
+      selectionMap.delete(interaction.user.id);
+    }
 
-      } catch (err) {
-        console.error(err);
+    // =========================
+    // メンバー追加
+    // =========================
+    else if (interaction.isButton() && interaction.customId === 'add_member') {
 
-        await interaction.editReply({
-          content: 'エラーが発生しました'
+      const select = new UserSelectMenuBuilder()
+        .setCustomId('add_member_select')
+        .setPlaceholder('追加するメンバー');
+
+      await interaction.reply({
+        content: '追加するメンバーを選択',
+        components: [new ActionRowBuilder().addComponents(select)],
+        ephemeral: true
+      });
+    }
+
+    else if (interaction.isUserSelectMenu() && interaction.customId === 'add_member_select') {
+
+      await interaction.deferUpdate();
+
+      for (const userId of interaction.values) {
+        await interaction.channel.permissionOverwrites.edit(userId, {
+          ViewChannel: true
         });
       }
+    }
+
+    // =========================
+    // 退出
+    // =========================
+    else if (interaction.isButton() && interaction.customId === 'leave_channel') {
+
+      await interaction.deferReply({ ephemeral: true });
+
+      await interaction.channel.permissionOverwrites.delete(interaction.user.id);
+
+      await interaction.editReply({
+        content: '退出しました'
+      });
+    }
+
+    // =========================
+    // 名前変更（1回だけ）
+    // =========================
+    else if (interaction.isButton() && interaction.customId === 'rename_channel') {
+
+      const topic = interaction.channel.topic;
+      const ownerId = topic?.replace('owner:', '');
+
+      if (interaction.user.id !== ownerId) {
+        return interaction.reply({
+          content: '作成者のみ変更できます',
+          ephemeral: true
+        });
+      }
+
+      const modal = new ModalBuilder()
+        .setCustomId('rename_modal')
+        .setTitle('チャンネル名変更');
+
+      const input = new TextInputBuilder()
+        .setCustomId('new_name')
+        .setLabel('新しい名前')
+        .setStyle(TextInputStyle.Short);
+
+      modal.addComponents(new ActionRowBuilder().addComponents(input));
+
+      await interaction.showModal(modal);
+    }
+
+    else if (interaction.isModalSubmit() && interaction.customId === 'rename_modal') {
+
+      await interaction.deferReply({ ephemeral: true });
+
+      const newName = interaction.fields.getTextInputValue('new_name');
+
+      await interaction.channel.setName(newName);
+
+      // ★ renameボタン削除（ここ重要）
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('add_member')
+          .setLabel('➕ メンバー追加')
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId('leave_channel')
+          .setLabel('🚪 退出')
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      const messages = await interaction.channel.messages.fetch({ limit: 10 });
+      const target = messages.find(msg => msg.components.length > 0);
+
+      if (target) {
+        await target.edit({
+          components: [row] // ← rename削除
+        });
+      }
+
+      await interaction.editReply({
+        content: `変更完了: ${newName}`
+      });
     }
 
   } catch (err) {
