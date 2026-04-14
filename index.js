@@ -66,7 +66,7 @@ client.on('interactionCreate', async (interaction) => {
 
     const users = selectionMap.get(interaction.user.id);
 
-    // ★ 2回目対策
+    // 未選択対策
     if (!users || users.length === 0) {
       return interaction.reply({
         content: '先にメンバーを選択してください',
@@ -118,10 +118,10 @@ client.on('interactionCreate', async (interaction) => {
         permissionOverwrites: permissions
       });
 
-      // 作成者保存
+      // 作成者情報保存
       await channel.setTopic(`owner:${interaction.user.id}`);
 
-      // ボタン送信
+      // 管理ボタン送信
       setTimeout(async () => {
         try {
           await channel.send({
@@ -239,23 +239,19 @@ client.on('interactionCreate', async (interaction) => {
     await interaction.showModal(modal);
   }
 
-  // 名前変更処理
+  // 名前変更処理（完全自由）
   if (interaction.isModalSubmit() && interaction.customId === 'rename_modal') {
 
     await interaction.deferReply({ ephemeral: true });
 
     try {
-      let newName = interaction.fields.getTextInputValue('new_name');
+      const newName = interaction.fields.getTextInputValue('new_name');
 
-      // ★ 「コラボ_」重複防止
-      newName = newName.replace(/^コラボ_/, '');
-
-      const safeName = newName.replace(/\s+/g, '_');
-
-      await interaction.channel.setName(`コラボ_${safeName}`);
+      // ★ 完全自由（そのまま）
+      await interaction.channel.setName(newName);
 
       await interaction.editReply({
-        content: `名前変更完了: コラボ_${safeName}`
+        content: `名前変更完了: ${newName}`
       });
 
     } catch (err) {
