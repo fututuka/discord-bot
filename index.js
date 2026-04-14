@@ -53,7 +53,9 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
+    // =========================
     // メンバー選択
+    // =========================
     else if (interaction.isUserSelectMenu() && interaction.customId === 'user_select') {
       selectionMap.set(interaction.user.id, interaction.values);
       await interaction.deferUpdate();
@@ -96,7 +98,7 @@ client.on('interactionCreate', async (interaction) => {
 
       await channel.setTopic(`owner:${interaction.user.id}`);
 
-      // ボタン表示（ここ重要）
+      // 管理ボタン
       await channel.send({
         content: 'メンバー管理',
         components: [
@@ -111,7 +113,7 @@ client.on('interactionCreate', async (interaction) => {
               .setStyle(ButtonStyle.Danger),
             new ButtonBuilder()
               .setCustomId('rename_channel')
-              .setLabel('✏️ チャンネル変更')
+              .setLabel('✏️ チャンネル変更（1回のみ）')
               .setStyle(ButtonStyle.Secondary)
           )
         ]
@@ -119,7 +121,7 @@ client.on('interactionCreate', async (interaction) => {
 
       await interaction.editReply({
         content: `作成完了: ${channel}`,
-        components: [] // ← createボタン消す
+        components: []
       });
 
       selectionMap.delete(interaction.user.id);
@@ -142,7 +144,6 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     else if (interaction.isUserSelectMenu() && interaction.customId === 'add_member_select') {
-
       await interaction.deferUpdate();
 
       for (const userId of interaction.values) {
@@ -167,7 +168,7 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     // =========================
-    // 名前変更（1回だけ）
+    // チャンネル変更（注意表示 → modal）
     // =========================
     else if (interaction.isButton() && interaction.customId === 'rename_channel') {
 
@@ -181,20 +182,25 @@ client.on('interactionCreate', async (interaction) => {
         });
       }
 
+      // ★ 注意表示＋モーダル
       const modal = new ModalBuilder()
         .setCustomId('rename_modal')
-        .setTitle('チャンネル名変更');
+        .setTitle('⚠️ 一度きりの変更です');
 
       const input = new TextInputBuilder()
         .setCustomId('new_name')
-        .setLabel('新しい名前')
-        .setStyle(TextInputStyle.Short);
+        .setLabel('チャンネル名（※変更は一度のみ）')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
 
       modal.addComponents(new ActionRowBuilder().addComponents(input));
 
       await interaction.showModal(modal);
     }
 
+    // =========================
+    // 名前変更（1回のみ）
+    // =========================
     else if (interaction.isModalSubmit() && interaction.customId === 'rename_modal') {
 
       await interaction.deferReply({ ephemeral: true });
@@ -203,7 +209,7 @@ client.on('interactionCreate', async (interaction) => {
 
       await interaction.channel.setName(newName);
 
-      // ★ renameボタン削除（ここ重要）
+      // renameボタン削除
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId('add_member')
@@ -220,7 +226,7 @@ client.on('interactionCreate', async (interaction) => {
 
       if (target) {
         await target.edit({
-          components: [row] // ← rename削除
+          components: [row]
         });
       }
 
