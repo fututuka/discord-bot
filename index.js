@@ -84,12 +84,13 @@ client.on('interactionCreate', async (interaction) => {
           ],
         },
         {
-          id: interaction.user.id,
-          allow: [
-            PermissionsBitField.Flags.ViewChannel,
-            PermissionsBitField.Flags.SendMessages
-          ],
-        },
+  id: interaction.user.id,
+  allow: [
+    PermissionsBitField.Flags.ViewChannel,
+    PermissionsBitField.Flags.SendMessages,
+    PermissionsBitField.Flags.ManageChannels
+  ],
+},
         ...users.map(id => ({
           id: id,
           allow: [
@@ -123,7 +124,7 @@ client.on('interactionCreate', async (interaction) => {
       .setStyle(ButtonStyle.Danger),
     new ButtonBuilder()
       .setCustomId('rename_channel')
-      .setLabel('✏️ 名前変更')
+      .setLabel('✏️ チャンネル名変更')
       .setStyle(ButtonStyle.Secondary)
   )
 ]
