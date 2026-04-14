@@ -72,20 +72,24 @@ if (interaction.isModalSubmit() && interaction.customId === 'channel_modal') {
 
     const guild = interaction.guild;
 
-    const permissions = [
-      {
-        id: guild.id,
-        deny: [PermissionsBitField.Flags.ViewChannel],
-      },
-      {
-        id: interaction.user.id,
-        allow: [PermissionsBitField.Flags.ViewChannel],
-      },
-      ...users.map(id => ({
-        id: id,
-        allow: [PermissionsBitField.Flags.ViewChannel],
-      }))
-    ];
+const permissions = [
+  {
+    id: guild.id,
+    deny: [PermissionsBitField.Flags.ViewChannel],
+  },
+  {
+    id: interaction.client.user.id, // ← ★これ追加
+    allow: [PermissionsBitField.Flags.ViewChannel],
+  },
+  {
+    id: interaction.user.id,
+    allow: [PermissionsBitField.Flags.ViewChannel],
+  },
+  ...users.map(id => ({
+    id: id,
+    allow: [PermissionsBitField.Flags.ViewChannel],
+  }))
+];
 
     const channel = await guild.channels.create({
       name: channelName,
