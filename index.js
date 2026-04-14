@@ -64,11 +64,19 @@ client.on('interactionCreate', async (interaction) => {
   // チャンネル作成
   if (interaction.isButton() && interaction.customId === 'create_channel') {
 
+    const users = selectionMap.get(interaction.user.id);
+
+    // ★ 2回目対策
+    if (!users || users.length === 0) {
+      return interaction.reply({
+        content: '先にメンバーを選択してください',
+        ephemeral: true
+      });
+    }
+
     await interaction.deferReply();
 
     try {
-      const users = selectionMap.get(interaction.user.id) || [];
-
       const name = interaction.member?.displayName || interaction.user.username;
       const safeName = name.replace(/\s+/g, '_');
       const channelName = `コラボ_${safeName}`;
@@ -110,10 +118,10 @@ client.on('interactionCreate', async (interaction) => {
         permissionOverwrites: permissions
       });
 
-      // ★ 作成者情報保存（超重要）
+      // 作成者保存
       await channel.setTopic(`owner:${interaction.user.id}`);
 
-      // ★ ボタン送信（遅延で安定化）
+      // ボタン送信
       setTimeout(async () => {
         try {
           await channel.send({
@@ -155,7 +163,7 @@ client.on('interactionCreate', async (interaction) => {
     }
   }
 
-  // メンバー追加ボタン
+  // メンバー追加
   if (interaction.isButton() && interaction.customId === 'add_member') {
 
     const select = new UserSelectMenuBuilder()
@@ -169,7 +177,6 @@ client.on('interactionCreate', async (interaction) => {
     });
   }
 
-  // メンバー追加処理
   if (interaction.isUserSelectMenu() && interaction.customId === 'add_member_select') {
 
     for (const userId of interaction.values) {
@@ -238,7 +245,11 @@ client.on('interactionCreate', async (interaction) => {
     await interaction.deferReply({ ephemeral: true });
 
     try {
-      const newName = interaction.fields.getTextInputValue('new_name');
+      let newName = interaction.fields.getTextInputValue('new_name');
+
+      // ★ 「コラボ_」重複防止
+      newName = newName.replace(/^コラボ_/, '');
+
       const safeName = newName.replace(/\s+/g, '_');
 
       await interaction.channel.setName(`コラボ_${safeName}`);
