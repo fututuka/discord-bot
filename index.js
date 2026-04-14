@@ -71,81 +71,91 @@ client.on('interactionCreate', async (interaction) => {
 
       await interaction.deferReply();
 
-      const name = interaction.member?.displayName || interaction.user.username;
-      const safeName = name.replace(/\s+/g, '_');
-      const channelName = `コラボ_${safeName}`;
+      try {
+        const name = interaction.member?.displayName || interaction.user.username;
+        const safeName = name.replace(/\s+/g, '_');
+        const channelName = `コラボ_${safeName}`;
 
-      const guild = interaction.guild;
+        const guild = interaction.guild;
 
-      const permissions = [
-        {
-          id: guild.id,
-          deny: [PermissionsBitField.Flags.ViewChannel],
-        },
-        {
-          id: interaction.client.user.id,
-          allow: [
-            PermissionsBitField.Flags.ViewChannel,
-            PermissionsBitField.Flags.SendMessages
-          ],
-        },
-        {
-          id: interaction.user.id,
-          allow: [
-            PermissionsBitField.Flags.ViewChannel,
-            PermissionsBitField.Flags.SendMessages
-          ],
-        },
-        ...users.map(id => ({
-          id: id,
-          allow: [
-            PermissionsBitField.Flags.ViewChannel,
-            PermissionsBitField.Flags.SendMessages
-          ],
-        }))
-      ];
+        const permissions = [
+          {
+            id: guild.id,
+            deny: [PermissionsBitField.Flags.ViewChannel],
+          },
+          {
+            id: interaction.client.user.id,
+            allow: [
+              PermissionsBitField.Flags.ViewChannel,
+              PermissionsBitField.Flags.SendMessages
+            ],
+          },
+          {
+            id: interaction.user.id,
+            allow: [
+              PermissionsBitField.Flags.ViewChannel,
+              PermissionsBitField.Flags.SendMessages
+            ],
+          },
+          ...users.map(id => ({
+            id: id,
+            allow: [
+              PermissionsBitField.Flags.ViewChannel,
+              PermissionsBitField.Flags.SendMessages
+            ],
+          }))
+        ];
 
-      const channel = await guild.channels.create({
-        name: channelName,
-        type: ChannelType.GuildText,
-        parent: CATEGORY_ID,
-        permissionOverwrites: permissions
-      });
+        const channel = await guild.channels.create({
+          name: channelName,
+          type: ChannelType.GuildText,
+          parent: CATEGORY_ID,
+          permissionOverwrites: permissions
+        });
 
-      await channel.setTopic(`owner:${interaction.user.id}`);
+        await channel.setTopic(`owner:${interaction.user.id}`);
 
-      setTimeout(async () => {
-        try {
-          await channel.send({
-            content: 'メンバー管理',
-            components: [
-              new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                  .setCustomId('add_member')
-                  .setLabel('➕ メンバー追加')
-                  .setStyle(ButtonStyle.Success),
-                new ButtonBuilder()
-                  .setCustomId('leave_channel')
-                  .setLabel('🚪 退出')
-                  .setStyle(ButtonStyle.Danger),
-                new ButtonBuilder()
-                  .setCustomId('rename_channel')
-                  .setLabel('✏️ 名前変更')
-                  .setStyle(ButtonStyle.Secondary)
-              )
-            ]
-          });
-        } catch (err) {
-          console.error("送信失敗:", err);
-        }
-      }, 1000);
+        setTimeout(async () => {
+          try {
+            await channel.send({
+              content: 'メンバー管理',
+              components: [
+                new ActionRowBuilder().addComponents(
+                  new ButtonBuilder()
+                    .setCustomId('add_member')
+                    .setLabel('➕ メンバー追加')
+                    .setStyle(ButtonStyle.Success),
+                  new ButtonBuilder()
+                    .setCustomId('leave_channel')
+                    .setLabel('🚪 退出')
+                    .setStyle(ButtonStyle.Danger),
+                  new ButtonBuilder()
+                    .setCustomId('rename_channel')
+                    .setLabel('✏️ チャンネル変更')
+                    .setStyle(ButtonStyle.Secondary)
+                )
+              ]
+            });
+          } catch (err) {
+            console.error("送信失敗:", err);
+          }
+        }, 1000);
 
-      await interaction.editReply({
-        content: `作成完了: ${channel}`,
-        components: []
-      });
+        await interaction.editReply({
+          content: `作成完了: ${channel}`,
+          components: []
+        });
 
-      selectionMap.delete(interaction.user.id);
+        selectionMap.delete(interaction.user.id);
+
+      } catch (err) {
+        console.error(err);
+
+        await interaction.editReply({
+          content: 'エラーが発生しました',
+          components: []
+        });
+      }
     }
 
     // メンバー追加
@@ -188,7 +198,7 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    // 名前変更ボタン
+    // チャンネル変更ボタン
     if (interaction.isButton() && interaction.customId === 'rename_channel') {
 
       const topic = interaction.channel.topic;
@@ -224,10 +234,10 @@ client.on('interactionCreate', async (interaction) => {
       await interaction.showModal(modal);
     }
 
-    // ★ 名前変更（完全修正版）
+    // 名前変更処理（安定版）
     if (interaction.isModalSubmit() && interaction.customId === 'rename_modal') {
 
-      await interaction.deferReply({ ephemeral: true }); // ← これが最重要
+      await interaction.deferReply({ ephemeral: true });
 
       try {
         const newName = interaction.fields.getTextInputValue('new_name');
@@ -235,7 +245,7 @@ client.on('interactionCreate', async (interaction) => {
         await interaction.channel.setName(newName);
 
         await interaction.editReply({
-          content: `名前変更完了: ${newName}`
+          content: `変更完了: ${newName}`
         });
 
       } catch (err) {
