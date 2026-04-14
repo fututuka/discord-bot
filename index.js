@@ -59,13 +59,16 @@ client.on('interactionCreate', async (interaction) => {
     await interaction.showModal(modal);
   }
 
-  if (interaction.isModalSubmit() && interaction.customId === 'channel_modal') {
+if (interaction.isModalSubmit() && interaction.customId === 'channel_modal') {
 
-    await interaction.deferReply();
+  await interaction.deferReply();
+
+  try {
 
     const users = selectionMap.get(interaction.user.id) || [];
-    const name = interaction.member.displayName.replace(/\s+/g, '_');
-    const channelName = `コラボ_${name}`;
+    const name = interaction.member?.displayName || interaction.user.username;
+    const safeName = name.replace(/\s+/g, '_');
+    const channelName = `コラボ_${safeName}`;
 
     const guild = interaction.guild;
 
@@ -91,28 +94,20 @@ client.on('interactionCreate', async (interaction) => {
       permissionOverwrites: permissions
     });
 
-    await channel.send({
-      content: 'メンバー管理',
-      components: [
-        new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId('add_member')
-            .setLabel('➕ メンバー追加')
-            .setStyle(ButtonStyle.Success),
-          new ButtonBuilder()
-            .setCustomId('leave_channel')
-            .setLabel('🚪 退出')
-            .setStyle(ButtonStyle.Danger)
-        )
-      ]
-    });
-
     await interaction.editReply({
       content: `作成完了: ${channel}`
     });
 
     selectionMap.delete(interaction.user.id);
+
+  } catch (err) {
+    console.error(err);
+
+    await interaction.editReply({
+      content: 'エラーが発生しました'
+    });
   }
+}
 
   if (interaction.isButton() && interaction.customId === 'add_member') {
 
