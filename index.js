@@ -3,7 +3,8 @@ if (interaction.isModalSubmit() && interaction.customId === 'channel_modal') {
   await interaction.deferReply(); // ← ここを一番上に移動
 
   const users = selectionMap.get(interaction.user.id);
-  const channelName = interaction.fields.getTextInputValue('channel_name');
+  const name = interaction.user.displayName.replace(/\s+/g, '_');
+  const channelName = `コラボ_${name}`;
   const guild = interaction.guild;
 
   const permissions = [
