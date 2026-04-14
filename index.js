@@ -235,27 +235,25 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     // 名前変更処理（安定版）
-    if (interaction.isModalSubmit() && interaction.customId === 'rename_modal') {
+if (interaction.isModalSubmit() && interaction.customId === 'rename_modal') {
+
+  await interaction.deferReply({ ephemeral: true }); // ← 先に応答（超重要）
 
   try {
     const newName = interaction.fields.getTextInputValue('new_name');
 
     await interaction.channel.setName(newName);
 
-    await interaction.reply({
-      content: `変更完了: ${newName}`,
-      ephemeral: true
+    await interaction.editReply({
+      content: `変更完了: ${newName}`
     });
 
   } catch (err) {
     console.error(err);
 
-    if (!interaction.replied) {
-      await interaction.reply({
-        content: '変更に失敗しました',
-        ephemeral: true
-      });
-    }
+    await interaction.editReply({
+      content: '変更に失敗しました'
+    });
   }
 }
 
