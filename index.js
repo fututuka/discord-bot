@@ -114,7 +114,6 @@ client.on('interactionCreate', async (interaction) => {
 
       await channel.setTopic(`owner:${interaction.user.id}`);
 
-      // ボタン送信
       setTimeout(async () => {
         try {
           await channel.send({
@@ -225,28 +224,26 @@ client.on('interactionCreate', async (interaction) => {
       await interaction.showModal(modal);
     }
 
-    // 名前変更（★ここ修正ポイント）
+    // ★ 名前変更（完全修正版）
     if (interaction.isModalSubmit() && interaction.customId === 'rename_modal') {
+
+      await interaction.deferReply({ ephemeral: true }); // ← これが最重要
 
       try {
         const newName = interaction.fields.getTextInputValue('new_name');
 
         await interaction.channel.setName(newName);
 
-        await interaction.reply({
-          content: `名前変更完了: ${newName}`,
-          ephemeral: true
+        await interaction.editReply({
+          content: `名前変更完了: ${newName}`
         });
 
       } catch (err) {
         console.error(err);
 
-        if (!interaction.replied) {
-          await interaction.reply({
-            content: '変更に失敗しました',
-            ephemeral: true
-          });
-        }
+        await interaction.editReply({
+          content: '変更に失敗しました'
+        });
       }
     }
 
