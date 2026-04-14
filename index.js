@@ -56,15 +56,15 @@ client.on('interactionCreate', async (interaction) => {
     // =========================
     // メンバー選択
     // =========================
-    if (interaction.isUserSelectMenu() && interaction.customId === 'user_select') {
+    else if (interaction.isUserSelectMenu() && interaction.customId === 'user_select') {
       selectionMap.set(interaction.user.id, interaction.values);
-      await interaction.deferUpdate(); // UI操作はこれ
+      await interaction.deferUpdate();
     }
 
     // =========================
     // チャンネル作成
     // =========================
-    if (interaction.isButton() && interaction.customId === 'create_channel') {
+    else if (interaction.isButton() && interaction.customId === 'create_channel') {
 
       const users = selectionMap.get(interaction.user.id);
 
@@ -75,7 +75,7 @@ client.on('interactionCreate', async (interaction) => {
         });
       }
 
-      await interaction.deferReply({ ephemeral: true }); // ★重い処理はこれ
+      await interaction.deferReply({ ephemeral: true });
 
       try {
         const name = interaction.member?.displayName || interaction.user.username;
@@ -121,7 +121,6 @@ client.on('interactionCreate', async (interaction) => {
 
         await channel.setTopic(`owner:${interaction.user.id}`);
 
-        // ボタン送信（遅延で安定化）
         setTimeout(async () => {
           try {
             await channel.send({
@@ -149,8 +148,7 @@ client.on('interactionCreate', async (interaction) => {
         }, 1000);
 
         await interaction.editReply({
-          content: `作成完了: ${channel}`,
-          components: []
+          content: `作成完了: ${channel}`
         });
 
         selectionMap.delete(interaction.user.id);
@@ -165,9 +163,9 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     // =========================
-    // メンバー追加
+    // メンバー追加ボタン
     // =========================
-    if (interaction.isButton() && interaction.customId === 'add_member') {
+    else if (interaction.isButton() && interaction.customId === 'add_member') {
 
       const select = new UserSelectMenuBuilder()
         .setCustomId('add_member_select')
@@ -180,7 +178,10 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    if (interaction.isUserSelectMenu() && interaction.customId === 'add_member_select') {
+    // =========================
+    // メンバー追加実行
+    // =========================
+    else if (interaction.isUserSelectMenu() && interaction.customId === 'add_member_select') {
 
       await interaction.deferUpdate();
 
@@ -195,7 +196,7 @@ client.on('interactionCreate', async (interaction) => {
     // =========================
     // 退出
     // =========================
-    if (interaction.isButton() && interaction.customId === 'leave_channel') {
+    else if (interaction.isButton() && interaction.customId === 'leave_channel') {
 
       await interaction.deferReply({ ephemeral: true });
 
@@ -209,7 +210,7 @@ client.on('interactionCreate', async (interaction) => {
     // =========================
     // チャンネル変更ボタン
     // =========================
-    if (interaction.isButton() && interaction.customId === 'rename_channel') {
+    else if (interaction.isButton() && interaction.customId === 'rename_channel') {
 
       const topic = interaction.channel.topic;
 
@@ -245,11 +246,11 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     // =========================
-    // モーダル送信（最重要）
+    // モーダル送信
     // =========================
-    if (interaction.isModalSubmit() && interaction.customId === 'rename_modal') {
+    else if (interaction.isModalSubmit() && interaction.customId === 'rename_modal') {
 
-      await interaction.deferReply({ ephemeral: true }); // ★これが最重要
+      await interaction.deferReply({ ephemeral: true });
 
       try {
         const newName = interaction.fields.getTextInputValue('new_name');
