@@ -6,7 +6,10 @@ const {
   ButtonBuilder,
   ButtonStyle,
   PermissionsBitField,
-  ChannelType
+  ChannelType,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle
 } = require('discord.js');
 
 const client = new Client({
@@ -49,6 +52,7 @@ client.on('interactionCreate', async (interaction) => {
 
   // メンバー選択
   if (interaction.isUserSelectMenu() && interaction.customId === 'user_select') {
+
     selectionMap.set(interaction.user.id, interaction.values);
 
     await interaction.reply({
@@ -84,13 +88,12 @@ client.on('interactionCreate', async (interaction) => {
           ],
         },
         {
-  id: interaction.user.id,
-  allow: [
-    PermissionsBitField.Flags.ViewChannel,
-    PermissionsBitField.Flags.SendMessages,
-    PermissionsBitField.Flags.ManageChannels
-  ],
-},
+          id: interaction.user.id,
+          allow: [
+            PermissionsBitField.Flags.ViewChannel,
+            PermissionsBitField.Flags.SendMessages
+          ],
+        },
         ...users.map(id => ({
           id: id,
           allow: [
@@ -107,27 +110,30 @@ client.on('interactionCreate', async (interaction) => {
         permissionOverwrites: permissions
       });
 
-      // ★ ここが重要（遅延入れて確実に送る）
+      // ★ 作成者情報保存（超重要）
+      await channel.setTopic(`owner:${interaction.user.id}`);
+
+      // ★ ボタン送信（遅延で安定化）
       setTimeout(async () => {
         try {
           await channel.send({
             content: 'メンバー管理',
             components: [
-  new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('add_member')
-      .setLabel('➕ メンバー追加')
-      .setStyle(ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId('leave_channel')
-      .setLabel('🚪 退出')
-      .setStyle(ButtonStyle.Danger),
-    new ButtonBuilder()
-      .setCustomId('rename_channel')
-      .setLabel('✏️ チャンネル名変更')
-      .setStyle(ButtonStyle.Secondary)
-  )
-]
+              new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                  .setCustomId('add_member')
+                  .setLabel('➕ メンバー追加')
+                  .setStyle(ButtonStyle.Success),
+                new ButtonBuilder()
+                  .setCustomId('leave_channel')
+                  .setLabel('🚪 退出')
+                  .setStyle(ButtonStyle.Danger),
+                new ButtonBuilder()
+                  .setCustomId('rename_channel')
+                  .setLabel('✏️ 名前変更')
+                  .setStyle(ButtonStyle.Secondary)
+              )
+            ]
           });
         } catch (err) {
           console.error("送信失敗:", err);
@@ -188,6 +194,66 @@ client.on('interactionCreate', async (interaction) => {
       content: '退出しました',
       ephemeral: true
     });
+  }
+
+  // 名前変更ボタン
+  if (interaction.isButton() && interaction.customId === 'rename_channel') {
+
+    const topic = interaction.channel.topic;
+
+    if (!topic || !topic.startsWith('owner:')) {
+      return interaction.reply({
+        content: '作成者情報がありません',
+        ephemeral: true
+      });
+    }
+
+    const ownerId = topic.replace('owner:', '');
+
+    if (interaction.user.id !== ownerId) {
+      return interaction.reply({
+        content: '作成者のみ変更できます',
+        ephemeral: true
+      });
+    }
+
+    const modal = new ModalBuilder()
+      .setCustomId('rename_modal')
+      .setTitle('チャンネル名変更');
+
+    const input = new TextInputBuilder()
+      .setCustomId('new_name')
+      .setLabel('新しいチャンネル名')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+
+    modal.addComponents(new ActionRowBuilder().addComponents(input));
+
+    await interaction.showModal(modal);
+  }
+
+  // 名前変更処理
+  if (interaction.isModalSubmit() && interaction.customId === 'rename_modal') {
+
+    await interaction.deferReply({ ephemeral: true });
+
+    try {
+      const newName = interaction.fields.getTextInputValue('new_name');
+      const safeName = newName.replace(/\s+/g, '_');
+
+      await interaction.channel.setName(`コラボ_${safeName}`);
+
+      await interaction.editReply({
+        content: `名前変更完了: コラボ_${safeName}`
+      });
+
+    } catch (err) {
+      console.error(err);
+
+      await interaction.editReply({
+        content: '変更に失敗しました'
+      });
+    }
   }
 
 });
